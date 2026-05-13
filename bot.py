@@ -1,7 +1,14 @@
-from telegram import Update
-from telegram import InlineKeyboardButton
-from telegram import InlineKeyboardMarkup
-from telegram import InputFile
+import os
+import threading
+
+from flask import Flask
+
+from telegram import (
+    Update,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    InputFile
+)
 
 from telegram.ext import (
     Application,
@@ -11,16 +18,26 @@ from telegram.ext import (
 )
 
 # =========================================
-# BOT CONFIGURATION
+# FLASK SERVER FOR RENDER
+# =========================================
+
+web_app = Flask(__name__)
+
+@web_app.route("/")
+def home():
+    return "LateNightServices Bot is Running!"
+
+def run_web():
+    port = int(os.environ.get("PORT", 10000))
+    web_app.run(host="0.0.0.0", port=port)
+
+# =========================================
+# BOT CONFIG
 # =========================================
 
 BOT_TOKEN = "8708188945:AAFGF8ut5Ynnaz81K72cEStudZFxjoVR_aE"
 
-OWNER_USERNAME = "@ShirshaDey39"
-
-# =========================================
-# PLAN DATA
-# =========================================
+OWNER_LINK = "https://t.me/ShirshaDey39"
 
 PLANS = {
     "plan_10": {
@@ -44,7 +61,7 @@ PLANS = {
     "plan_100": {
         "name": "Ultimate Plan",
         "price": "₹100",
-        "videos": "5000+ Videos with Daily Updates"
+        "videos": "5000+ Videos + Daily Updates"
     }
 }
 
@@ -55,33 +72,10 @@ PLANS = {
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
-        [
-            InlineKeyboardButton(
-                "₹10 - Demo Plan",
-                callback_data="plan_10"
-            )
-        ],
-
-        [
-            InlineKeyboardButton(
-                "₹25 - Starter Plan",
-                callback_data="plan_25"
-            )
-        ],
-
-        [
-            InlineKeyboardButton(
-                "₹50 - Premium Plan",
-                callback_data="plan_50"
-            )
-        ],
-
-        [
-            InlineKeyboardButton(
-                "₹100 - Ultimate Plan",
-                callback_data="plan_100"
-            )
-        ]
+        [InlineKeyboardButton("₹10 - Demo Plan", callback_data="plan_10")],
+        [InlineKeyboardButton("₹25 - Starter Plan", callback_data="plan_25")],
+        [InlineKeyboardButton("₹50 - Premium Plan", callback_data="plan_50")],
+        [InlineKeyboardButton("₹100 - Ultimate Plan", callback_data="plan_100")]
     ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -112,13 +106,12 @@ async def plan_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"✅ Selected Plan: {selected_plan['name']}\n\n"
         f"💰 Amount: {selected_plan['price']}\n"
         f"🎬 Access: {selected_plan['videos']}\n\n"
-        "📌 Payment Instructions:\n"
-        "1. Scan the QR code below\n"
-        "2. Complete payment using UPI / PhonePe\n"
+        "📌 Payment Steps:\n"
+        "1. Scan QR below\n"
+        "2. Complete payment\n"
         "3. Take screenshot after payment\n"
-        f"4. Send screenshot to owner: {OWNER_USERNAME}\n\n"
-        "🔒 After verification, you will receive "
-        "private channel access."
+        f"4. Send screenshot here:\n{OWNER_LINK}\n\n"
+        "🔒 After verification you will receive private channel access."
     )
 
     try:
@@ -133,23 +126,22 @@ async def plan_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except FileNotFoundError:
 
         await query.message.reply_text(
-            "❌ payment_qr.jpg file not found.\n"
-            "Please place your QR image in the same folder."
+            "payment_qr.jpg file not found."
         )
 
 # =========================================
-# MAIN FUNCTION
+# MAIN
 # =========================================
 
 def main():
+
+    threading.Thread(target=run_web).start()
 
     print("🚀 Starting bot...")
 
     app = Application.builder().token(BOT_TOKEN).build()
 
-    app.add_handler(
-        CommandHandler("start", start)
-    )
+    app.add_handler(CommandHandler("start", start))
 
     app.add_handler(
         CallbackQueryHandler(plan_selected)
@@ -157,10 +149,8 @@ def main():
 
     print("✅ Bot is running...")
 
-    app.run_polling()
+    app.run_polling(drop_pending_updates=True)
 
-# =========================================
-# RUN BOT
 # =========================================
 
 if __name__ == "__main__":
